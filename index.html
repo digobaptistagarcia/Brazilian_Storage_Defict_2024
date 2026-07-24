@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grain Storage — Storage Deficit Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  /* fundos */
+  --bg:#071321; --bg-2:#0B1D33; --deep:#050E19;
+  /* cards */
+  --panel:#102845; --panel-2:#0E2239; --panel-3:#143255;
+  --line:#1A3B63; --line-soft:#16324F;
+  /* texto */
+  --tx:#F8FAFC; --tx-2:#CBD5E1; --tx-3:#7E96B4;
+  /* acentos vivos */
+  --emerald:#10E5A0; --cyan:#22D3EE; --elec:#3B82F6;
+  --purple:#A855F7; --magenta:#F0399C;
+  /* alertas */
+  --amber:#FBBF24; --orange:#FB923C; --red:#F87171;
+  /* escala de calor (vermelho → verde, sem azul) */
+  --heat-0:#DC2626; --heat-1:#F97316; --heat-2:#FBBF24; --heat-3:#A3E635; --heat-4:#22C55E;
+  --sb:212px; --r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:linear-gradient(168deg,var(--bg) 0%,var(--bg-2) 55%,var(--deep) 100%);background-attachment:fixed;color:var(--tx);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:13px;-webkit-font-smoothing:antialiased}
+.num{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+.shell{display:flex;min-height:100vh}
+
+/* sidebar */
+.sidebar{width:var(--sb);flex:0 0 var(--sb);background:linear-gradient(180deg,var(--panel) 0%,var(--panel-2) 100%);border-right:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{display:flex;gap:10px;align-items:center;padding:18px 16px;border-bottom:1px solid var(--line-soft)}
+.brand-mark{width:34px;height:34px;border-radius:9px;flex:0 0 34px;background:linear-gradient(140deg,#134e6f,#0d2b4d);border:1px solid #2a5f96;box-shadow:0 0 14px rgba(34,211,238,.22);display:grid;place-items:center;font-size:17px}
+.brand-name{font-size:14px;font-weight:600;letter-spacing:-.01em;line-height:1.2}
+.brand-sub{font-size:10.5px;color:var(--tx-3);margin-top:1px}
+.nav{padding:12px 10px;display:flex;flex-direction:column;gap:2px;flex:1;overflow:auto}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;color:var(--tx-2);text-decoration:none;font-size:12.5px;font-weight:500;border:1px solid transparent;transition:background .14s,color .14s;cursor:pointer}
+.nav a:hover{background:rgba(59,130,246,.10);color:var(--tx)}
+.nav a.active{background:linear-gradient(90deg,rgba(34,211,238,.20),rgba(59,130,246,.06));border-color:rgba(34,211,238,.38);color:#BEF3FB;box-shadow:inset 0 0 18px rgba(34,211,238,.08)}
+.sb-foot{padding:10px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line-soft)}
+.chip-card{display:flex;flex-direction:column;background:linear-gradient(150deg,var(--panel-3),var(--panel-2));border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.chip-card .k{font-size:9.5px;font-weight:600;color:var(--tx-3);text-transform:uppercase;letter-spacing:.05em}
+.chip-card .v{font-size:12px;color:var(--tx);margin-top:4px;font-weight:600}
+
+/* main */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(7,19,33,.97),rgba(7,19,33,.88));backdrop-filter:blur(6px);position:sticky;top:0;z-index:5}
+.topbar h1{font-size:16.5px;font-weight:600;letter-spacing:-.015em}
+.topbar p{font-size:11.5px;color:var(--tx-3);margin-top:3px}
+.topbar .spacer{flex:1}
+.filters{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end}
+.f-group{display:flex;flex-direction:column;gap:4px}
+.sel-label{font-size:9px;color:var(--tx-3);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+select.sel{background:var(--panel-3);border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:12px;color:var(--tx);font-family:inherit;min-width:132px;max-width:170px;height:70px;cursor:pointer}
+select.sel-drop{height:34px;padding:7px 9px}
+select.sel-wide{min-width:186px;max-width:210px}
+select.sel:hover{border-color:#2d5f96}
+select.sel option{background:var(--panel-2);color:var(--tx);padding:3px}
+select.sel option:checked{background:rgba(34,211,238,.32)}
+.btn{background:var(--panel-3);border:1px solid var(--line);border-radius:9px;padding:8px 13px;cursor:pointer;font-size:12px;font-weight:500;color:var(--tx-2);transition:all .18s;font-family:inherit}
+.btn:hover{border-color:#2d5f96;color:var(--tx)}
+.btn.active{background:linear-gradient(135deg,var(--cyan),var(--elec));color:#04121f;border-color:var(--cyan);box-shadow:0 0 14px rgba(34,211,238,.35)}
+.btn-clear{color:var(--tx-3)}
+
+.canvas{padding:16px 20px 26px;display:flex;flex-direction:column;gap:14px}
+
+/* panels */
+.panel{background:linear-gradient(158deg,var(--panel) 0%,var(--panel-2) 100%);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:0 1px 0 rgba(255,255,255,.03) inset,0 8px 22px rgba(3,10,20,.45);min-width:0;display:flex;flex-direction:column}
+.panel>h2{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.panel>h2 .tag{margin-left:auto;font-size:9.5px;font-weight:500;letter-spacing:.03em;color:var(--tx-3);border:1px solid var(--line);border-radius:5px;padding:2px 6px}
+
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpi{background:linear-gradient(158deg,var(--panel) 0%,var(--panel-2) 100%);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;position:relative;overflow:hidden;min-width:0;box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 8px 22px rgba(3,10,20,.45)}
+.kpi::after{content:"";position:absolute;inset:0 0 auto 0;height:1px;background:linear-gradient(90deg,transparent,var(--kpi-glow,rgba(34,211,238,.75)),transparent)}
+.kpi:nth-child(1){--kpi-glow:rgba(16,229,160,.8)}
+.kpi:nth-child(2){--kpi-glow:rgba(34,211,238,.8)}
+.kpi:nth-child(3){--kpi-glow:rgba(248,113,113,.8)}
+.kpi:nth-child(4){--kpi-glow:rgba(251,191,36,.8)}
+.kpi:nth-child(5){--kpi-glow:rgba(168,85,247,.8)}
+.kpi-top{display:flex;align-items:center;gap:9px}
+.kpi-ico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;flex:0 0 28px;font-size:13px}
+.i-green{background:rgba(16,229,160,.16);box-shadow:0 0 12px rgba(16,229,160,.16)}
+.i-lime{background:rgba(34,211,238,.16);box-shadow:0 0 12px rgba(34,211,238,.16)}
+.i-red{background:rgba(248,113,113,.16);box-shadow:0 0 12px rgba(248,113,113,.16)}
+.i-amber{background:rgba(251,191,36,.16);box-shadow:0 0 12px rgba(251,191,36,.16)}
+.i-purple{background:rgba(168,85,247,.18);box-shadow:0 0 12px rgba(168,85,247,.18)}
+.kpi-label{font-size:11px;color:var(--tx-2);font-weight:500}
+.kpi-val{font-size:23px;font-weight:600;letter-spacing:-.03em;margin:9px 0 6px}
+.kpi-sub{font-size:10.5px;color:var(--tx-3);line-height:1.35}
+
+/* grids */
+.row-maps{display:grid;grid-template-columns:1.15fr 1.15fr 1fr;gap:14px}
+.row-charts{display:grid;grid-template-columns:1fr 1fr 1.35fr;gap:14px}
+.row-bottom{display:grid;grid-template-columns:1fr 1.75fr;gap:14px}
+
+.chart-note{margin-top:10px;font-size:10px;line-height:1.5;color:var(--tx-3);border-top:1px solid var(--line-soft);padding-top:9px}
+.chart-note b{color:var(--tx-2);font-weight:600}
+.chart-note .warn{color:var(--amber)}
+
+/* mapas */
+.map-slot{position:relative;flex:1;min-height:250px;border-radius:9px;overflow:hidden;background:var(--deep);border:1px solid var(--line-soft)}
+.lmap{position:absolute;inset:0;background:#050E19}
+.leaflet-container{background:#050E19;font-family:Inter,sans-serif;outline:none}
+.leaflet-control-zoom a{background:#143255!important;color:var(--tx-2)!important;border-color:var(--line)!important;width:24px!important;height:24px!important;line-height:24px!important;font-size:15px!important}
+.leaflet-control-zoom a:hover{background:#1E4674!important;color:var(--tx)!important}
+.leaflet-control-attribution{display:none}
+.leaflet-tooltip.mtip{background:var(--panel-2);border:1px solid var(--line);color:var(--tx);border-radius:7px;padding:7px 9px;font-size:11px;box-shadow:0 6px 20px rgba(3,10,20,.7)}
+.leaflet-tooltip.mtip::before{display:none}
+.leaflet-tooltip.mtip b{display:block;font-size:11.5px;margin-bottom:3px}
+.leaflet-tooltip.mtip i{font-style:normal;color:var(--tx-3)}
+.map-legend{position:absolute;left:9px;bottom:9px;z-index:500;background:rgba(14,34,57,.92);border:1px solid var(--line);border-radius:8px;padding:6px 8px;display:flex;align-items:center;gap:6px;font-size:9px;color:var(--tx-3)}
+.map-legend .bar{width:78px;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--heat-0),var(--heat-1),var(--heat-2),var(--heat-3),var(--heat-4))}
+.map-legend .sw{width:9px;height:9px;border-radius:2px;background:#34D399;border:1px solid #6EE7B7}
+.map-loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--tx-3);font-size:11px;z-index:600;background:var(--deep)}
+
+/* autocomplete */
+.ac{position:relative}
+.ac input{background:var(--panel-3);border:1px solid var(--line);border-radius:9px;padding:8px 26px 8px 10px;font-size:12px;color:var(--tx);font-family:inherit;width:196px;height:34px}
+.ac input::placeholder{color:var(--tx-3)}
+.ac input:focus{outline:none;border-color:rgba(34,211,238,.65);box-shadow:0 0 0 3px rgba(34,211,238,.12)}
+.ac .x{position:absolute;right:7px;top:9px;width:16px;height:16px;border-radius:50%;border:0;background:#1E4674;color:var(--tx-3);font-size:11px;line-height:1;cursor:pointer;display:none;font-family:inherit}
+.ac.has-val .x{display:block}
+.ac .x:hover{background:#2a5f96;color:var(--tx)}
+.ac-list{position:absolute;top:38px;left:0;width:260px;max-height:238px;overflow:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;z-index:60;display:none;box-shadow:0 14px 34px rgba(3,10,20,.7)}
+.ac-list.open{display:block}
+.ac-list div{padding:7px 10px;font-size:12px;cursor:pointer;display:flex;gap:8px;align-items:baseline;border-bottom:1px solid var(--line-soft)}
+.ac-list div:last-child{border-bottom:0}
+.ac-list div small{color:var(--tx-3);font-size:10px;margin-left:auto}
+.ac-list div.on,.ac-list div:hover{background:rgba(34,211,238,.14)}
+.ac-list .none{color:var(--tx-3);cursor:default}
+
+.chart-box{position:relative;flex:1;min-height:230px}
+
+/* heatmap */
+.hm{display:flex;flex-direction:column;gap:5px}
+.hm-row{display:flex;align-items:center;gap:8px}
+.hm-row .lbl{width:26px;flex:0 0 26px;font-size:10px;color:var(--tx-3);font-weight:600;letter-spacing:.03em}
+.hm-cells{display:grid;grid-template-columns:repeat(27,1fr);gap:3px;flex:1}
+.hm-cells i{display:block;aspect-ratio:1;border-radius:3px;background:rgba(255,255,255,.03);border:1px solid transparent}
+.hm-cells i[data-v]{cursor:pointer;border-color:rgba(255,255,255,.05)}
+.hm-cells i[data-v]:hover{border-color:#F8FAFC;box-shadow:0 0 10px rgba(248,250,252,.35)}
+.hm-axis{display:grid;grid-template-columns:repeat(27,1fr);gap:3px;margin-left:34px;margin-top:6px}
+.hm-axis span{font-size:7.5px;color:var(--tx-3);text-align:center;font-family:"JetBrains Mono",monospace}
+.hm-legend{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:9.5px;color:var(--tx-3)}
+.hm-legend .sw-sup{width:9px;height:9px;border-radius:2px;background:#34D399;border:1px solid #6EE7B7;flex:0 0 9px}
+.hm-legend .bar{flex:1;height:7px;border-radius:4px;background:linear-gradient(90deg,var(--heat-0),var(--heat-1),var(--heat-2),var(--heat-3),var(--heat-4))}
+
+/* table */
+.tbl-wrap{overflow:auto;flex:1;max-height:330px}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+thead th{position:sticky;top:0;background:var(--panel);backdrop-filter:blur(4px);text-align:left;font-size:9.5px;font-weight:600;color:var(--tx-3);text-transform:uppercase;letter-spacing:.05em;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody td{padding:8px 8px;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+tbody tr:hover{background:rgba(34,211,238,.07)}
+th.r,td.r{text-align:right}
+td.idx{color:var(--tx-3);width:26px}
+.mini-bar{display:flex;align-items:center;gap:7px;justify-content:flex-end}
+.mini-bar .track{width:52px;height:5px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden}
+.mini-bar .fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--heat-2),var(--heat-1),var(--heat-0))}
+.mini-bar .pct{width:44px;text-align:right;font-size:11px}
+
+.empty{padding:26px;text-align:center;color:var(--tx-3);font-size:11.5px}
+
+.foot{display:flex;gap:8px;align-items:center;justify-content:center;padding:12px 20px;font-size:10px;color:var(--tx-3);border-top:1px solid var(--line);background:rgba(5,14,25,.5)}
+.foot .dot{width:3px;height:3px;border-radius:50%;background:var(--tx-3)}
+
+@media(max-width:1500px){
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  .row-charts{grid-template-columns:1fr 1fr}
+  .row-maps{grid-template-columns:1fr 1fr}
+  .row-bottom{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">🌾</div>
+      <div>
+        <div class="brand-name">Grain Storage</div>
+        <div class="brand-sub">Storage Deficit</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a href="#" class="nav-link active" data-page="overview">📊 Overview</a>
+      <a href="#" class="nav-link" data-page="analysis">📈 Analysis</a>
+      <a href="#" class="nav-link" data-page="regions">🗺️ Regions</a>
+    </nav>
+
+    <div class="sb-foot">
+      <div class="chip-card">
+        <div class="k">Municipalities</div>
+        <div class="v num" id="chip-mun">—</div>
+      </div>
+      <div class="chip-card">
+        <div class="k">Harvest Year</div>
+        <div class="v">2024</div>
+      </div>
+      <div class="chip-card">
+        <div class="k">Status</div>
+        <div class="v" style="color:#10E5A0">● Data loaded</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+
+    <div class="topbar">
+      <div>
+        <h1>Storage Deficit Overview</h1>
+        <p id="scope-label">Brazil · all regions</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="filters">
+        <div class="f-group">
+          <span class="sel-label">Region</span>
+          <select id="f-regiao" class="sel sel-drop"></select>
+        </div>
+        <div class="f-group">
+          <span class="sel-label">State</span>
+          <select id="f-estado" class="sel sel-drop"></select>
+        </div>
+        <div class="f-group">
+          <span class="sel-label">City</span>
+          <div class="ac" id="ac-city">
+            <input id="f-municipio" type="text" placeholder="Type a municipality…" autocomplete="off" spellcheck="false">
+            <button class="x" id="ac-clear" title="Clear city">✕</button>
+            <div class="ac-list" id="ac-list"></div>
+          </div>
+        </div>
+        <div class="f-group">
+          <span class="sel-label">Matopiba</span>
+          <button id="f-matopiba" class="btn">All</button>
+        </div>
+        <div class="f-group">
+          <span class="sel-label">&nbsp;</span>
+          <button id="f-clear" class="btn btn-clear">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="canvas">
+
+      <!-- KPIs -->
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi-top"><div class="kpi-ico i-green">🌾</div><div class="kpi-label">Total Production</div></div>
+          <div class="kpi-val num" id="kpi-prod">—</div>
+          <div class="kpi-sub">Million tonnes · harvest 2024</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><div class="kpi-ico i-lime">📦</div><div class="kpi-label">Total Capacity</div></div>
+          <div class="kpi-val num" id="kpi-cap">—</div>
+          <div class="kpi-sub">Million tonnes · static storage</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><div class="kpi-ico i-red">⚠️</div><div class="kpi-label">Total Deficit</div></div>
+          <div class="kpi-val num" id="kpi-def">—</div>
+          <div class="kpi-sub">Million tonnes · capacity − production</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><div class="kpi-ico i-amber">📊</div><div class="kpi-label">Deficit %</div></div>
+          <div class="kpi-val num" id="kpi-defpct">—</div>
+          <div class="kpi-sub">Negative = shortfall vs production</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-top"><div class="kpi-ico i-purple">✓</div><div class="kpi-label">Coverage Ratio</div></div>
+          <div class="kpi-val num" id="kpi-cov">—</div>
+          <div class="kpi-sub">Capacity ÷ production</div>
+        </div>
+      </div>
+
+      <!-- ROW 1 — MAPS (Etapa 4) -->
+      <section class="row-maps">
+        <div class="panel">
+          <h2>Deficit by Municipality<span class="tag">CHOROPLETH</span></h2>
+          <div class="map-slot">
+            <div class="lmap" id="map1"></div>
+            <div class="map-loading" id="map1-load">Loading geometry…</div>
+            <div class="map-legend"><span>−100%</span><div class="bar"></div><span>0%</span><div class="sw"></div><span>surplus</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Production Density<span class="tag">BUBBLES</span></h2>
+          <div class="map-slot">
+            <div class="lmap" id="map2"></div>
+            <div class="map-loading" id="map2-load">Loading geometry…</div>
+            <div class="map-legend"><span>Bubble area ∝ production</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Regional Split<span class="tag">BY STATE</span></h2>
+          <div class="map-slot">
+            <div class="lmap" id="map3"></div>
+            <div class="map-loading" id="map3-load">Loading geometry…</div>
+            <div class="map-legend"><span>−100%</span><div class="bar"></div><span>0%</span><div class="sw"></div><span>surplus</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROW 2 — CHARTS -->
+      <section class="row-charts">
+        <div class="panel">
+          <h2>Deficit % by Region<span class="tag">SHARE</span></h2>
+          <div class="chart-box"><canvas id="cRegion"></canvas></div>
+        </div>
+        <div class="panel">
+          <h2>Production · Capacity · Deficit<span class="tag">Mt</span></h2>
+          <div class="chart-box"><canvas id="cGrouped"></canvas></div>
+        </div>
+        <div class="panel">
+          <h2>Production vs Storage Balance<span class="tag" id="scatter-tag">MUNICIPALITIES</span></h2>
+          <div class="chart-box"><canvas id="cScatter"></canvas></div>
+          <p class="chart-note">
+            Each dot is a municipality: <b>where it sits horizontally</b> is how much grain it harvests
+            (log scale), <b>how high it sits</b> is how much of that harvest it can store.
+            <b>0%</b> = storage exactly matches output; <b>−100%</b> = no storage at all.
+            Dots low and to the right are the real problem: <b>big harvests with nowhere to put them</b>.
+            <span id="scatter-foot"></span>
+          </p>
+        </div>
+      </section>
+
+      <!-- ROW 3 — HEATMAP + TABLE -->
+      <section class="row-bottom">
+        <div class="panel">
+          <h2>State Heatmap<span class="tag">UF × REGION</span></h2>
+          <div class="hm" id="hm"></div>
+          <div class="hm-axis" id="hmAxis"></div>
+          <div class="hm-legend">
+            <span>−100%</span><div class="bar"></div><span>0%</span>
+            <span class="sw-sup"></span><span>surplus</span>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Top 10 Municipalities by Shortfall<span class="tag">TONNES</span></h2>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="idx">#</th><th>Municipality</th><th>State</th><th>Region</th>
+                  <th class="r">Production (t)</th><th class="r">Capacity (t)</th><th class="r">Deficit (t)</th><th class="r">Deficit (%)</th>
+                </tr>
+              </thead>
+              <tbody id="tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="foot">
+      <span>Source: IBGE (PAM), CONAB, MAPA</span><span class="dot"></span>
+      <span>Harvest year 2024</span><span class="dot"></span>
+      <span id="foot-count">—</span>
+    </div>
+  </div>
+</div>
+
+<script src="dados.js"></script>
+<script src="geo.js"></script>
+<script>
+/* =======================================================================
+   CONVENÇÃO DE SINAL
+   DEFICIT = capacity − production.
+   Negativo = falta de armazenagem. Positivo = superávit.
+   Mesma convenção da coluna `defict_armazenagem` do Excel.
+   ======================================================================= */
+
+const C = {
+  emerald:'#10E5A0', cyan:'#22D3EE', elec:'#3B82F6', purple:'#A855F7', magenta:'#F0399C',
+  amber:'#FBBF24', orange:'#FB923C', red:'#F87171',
+  grid:'rgba(203,213,225,.08)', tick:'#7E96B4', panel:'#0E2239', line:'#1A3B63'
+};
+Chart.defaults.font.family='Inter, system-ui, sans-serif';
+Chart.defaults.font.size=10;
+Chart.defaults.color=C.tick;
+Chart.defaults.plugins.legend.display=false;
+Chart.defaults.plugins.tooltip.backgroundColor=C.panel;
+Chart.defaults.plugins.tooltip.borderColor=C.line;
+Chart.defaults.plugins.tooltip.borderWidth=1;
+Chart.defaults.plugins.tooltip.titleColor='#F8FAFC';
+Chart.defaults.plugins.tooltip.bodyColor='#CBD5E1';
+Chart.defaults.plugins.tooltip.padding=9;
+Chart.defaults.plugins.tooltip.cornerRadius=7;
+Chart.defaults.plugins.tooltip.displayColors=false;
+Chart.defaults.maintainAspectRatio=false;
+Chart.defaults.animation.duration=350;
+
+const REGION_ORDER = ['Norte','Nordeste','Centro-Oeste','Sudeste','Sul'];
+const REGION_SHORT = {'Norte':'N','Nordeste':'NE','Centro-Oeste':'CO','Sudeste':'SE','Sul':'S'};
+
+const nf   = n => Math.round(n).toLocaleString('en-US');
+const mt   = n => (n/1e6).toFixed(1);
+const pct1 = n => (n>=0?'':'−') + Math.abs(n).toFixed(1) + '%';
+
+/* deficit negativo = falta de armazenagem */
+const defOf = m => m.capacity_t - m.production_t;
+
+/* ---------- estado ---------- */
+const ALL = DADOS.municipios;
+let view = ALL;
+let charts = {};
+let filtro = { regioes:[], estados:[], municipios:[], matopiba:false };
+
+/* =========================================================
+   AGREGAÇÕES
+   ========================================================= */
+function totals(rows){
+  const p = rows.reduce((a,m)=>a+m.production_t,0);
+  const c = rows.reduce((a,m)=>a+m.capacity_t,0);
+  const d = c - p;
+  return { p, c, d, dpct: p>0 ? d/p*100 : 0, cov: p>0 ? c/p*100 : 0, n: rows.length };
+}
+
+function byKey(rows, key){
+  const m = new Map();
+  rows.forEach(r=>{
+    const k = r[key];
+    if(!m.has(k)) m.set(k, {p:0,c:0});
+    const o = m.get(k); o.p += r.production_t; o.c += r.capacity_t;
+  });
+  const out = {};
+  m.forEach((v,k)=>{ const d=v.c-v.p; out[k]={p:v.p,c:v.c,d, dpct: v.p>0 ? d/v.p*100 : 0}; });
+  return out;
+}
+
+function regionsPresent(rows){
+  const set = new Set(rows.map(r=>r.regiao));
+  return REGION_ORDER.filter(r=>set.has(r));
+}
+
+/* =========================================================
+   FILTROS
+   ========================================================= */
+function buildFilters(){
+  const fr = document.getElementById('f-regiao');
+  const fe = document.getElementById('f-estado');
+  const fm = document.getElementById('f-municipio');
+
+  fr.innerHTML = `<option value="">All regions</option>` +
+    REGION_ORDER.filter(r=>DADOS.regioes[r]).map(r=>`<option value="${r}">${r}</option>`).join('');
+
+  refreshDependentFilters();
+
+  fr.addEventListener('change', ()=>{ refreshDependentFilters(); applyFilters(); });
+  fe.addEventListener('change', ()=>{ refreshCityScope();        applyFilters(); });
+
+  document.getElementById('f-matopiba').addEventListener('click', function(){
+    filtro.matopiba = !filtro.matopiba;
+    this.classList.toggle('active', filtro.matopiba);
+    this.textContent = filtro.matopiba ? 'Only' : 'All';
+    applyFilters();
+  });
+
+  document.getElementById('f-clear').addEventListener('click', ()=>{
+    fr.value = '';
+    fe.value = '';
+    clearCity(false);
+    filtro.matopiba = false;
+    const b = document.getElementById('f-matopiba');
+    b.classList.remove('active'); b.textContent='All';
+    refreshDependentFilters();
+    applyFilters();
+  });
+}
+
+/* multi-select (regiões) → array; dropdown simples → array de 0 ou 1 item */
+function selectedOf(id){
+  return Array.from(document.getElementById(id).selectedOptions)
+    .map(o=>o.value).filter(v=>v!=='');
+}
+
+/* estados dependem das regiões escolhidas */
+function refreshDependentFilters(){
+  const regs = selectedOf('f-regiao');
+  const fe   = document.getElementById('f-estado');
+  const keep = fe.value;
+  const ufs  = [...new Set(ALL.filter(m=>!regs.length || regs.includes(m.regiao)).map(m=>m.estado))].sort();
+  fe.innerHTML = `<option value="">All states</option>` +
+    ufs.map(u=>`<option value="${u}">${u}</option>`).join('');
+  fe.value = ufs.includes(keep) ? keep : '';
+  refreshCityScope();
+}
+
+/* ======================= AUTOCOMPLETE DE CIDADE ======================= */
+let cityPool = [];      /* municípios dentro do escopo região+estado */
+let citySel  = null;    /* codigo_ibge escolhido */
+let acIdx    = -1;
+
+const deaccent = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+
+function refreshCityScope(){
+  const regs = selectedOf('f-regiao');
+  const uf   = document.getElementById('f-estado').value;
+  cityPool = ALL
+    .filter(m => (!regs.length || regs.includes(m.regiao)) && (!uf || m.estado===uf))
+    .map(m => ({ c:m.codigo_ibge, n:m.municipio, u:m.estado, k:deaccent(m.municipio) }))
+    .sort((a,b)=> a.n.localeCompare(b.n,'pt-BR'));
+
+  const input = document.getElementById('f-municipio');
+  input.placeholder = `Type a municipality… (${nf(cityPool.length)})`;
+
+  /* se a cidade escolhida saiu do escopo, solta o filtro */
+  if(citySel !== null && !cityPool.some(x=>x.c===citySel)) clearCity(false);
+}
+
+function clearCity(rerender=true){
+  citySel = null; acIdx = -1;
+  const input = document.getElementById('f-municipio');
+  input.value = '';
+  document.getElementById('ac-city').classList.remove('has-val');
+  closeAC();
+  if(rerender) applyFilters();
+}
+
+function closeAC(){ document.getElementById('ac-list').classList.remove('open'); acIdx = -1; }
+
+function renderAC(q){
+  const list = document.getElementById('ac-list');
+  const term = deaccent(q.trim());
+  const hits = (term ? cityPool.filter(x=>x.k.includes(term)) : cityPool).slice(0,60);
+
+  if(!hits.length){
+    list.innerHTML = `<div class="none">No municipality found</div>`;
+    list.classList.add('open');
+    return;
+  }
+  list.innerHTML = hits.map((x,i)=>
+    `<div data-c="${x.c}" data-i="${i}"><span>${x.n}</span><small>${x.u}</small></div>`).join('');
+  list.classList.add('open');
+  acIdx = -1;
+}
+
+function pickCity(code){
+  const m = cityPool.find(x=>x.c===Number(code));
+  if(!m) return;
+  citySel = m.c;
+  const input = document.getElementById('f-municipio');
+  input.value = `${m.n} · ${m.u}`;
+  document.getElementById('ac-city').classList.add('has-val');
+  closeAC();
+  input.blur();
+  applyFilters();
+}
+
+function bindAutocomplete(){
+  const input = document.getElementById('f-municipio');
+  const list  = document.getElementById('ac-list');
+
+  input.addEventListener('focus', ()=>{ input.select(); renderAC(citySel ? '' : input.value); });
+  input.addEventListener('input', ()=>{
+    if(citySel !== null){ citySel = null; document.getElementById('ac-city').classList.remove('has-val'); applyFilters(); }
+    renderAC(input.value);
+  });
+
+  input.addEventListener('keydown', e=>{
+    const items = [...list.querySelectorAll('div[data-c]')];
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault();
+      if(!items.length) return;
+      acIdx = e.key === 'ArrowDown'
+        ? Math.min(acIdx + 1, items.length - 1)
+        : Math.max(acIdx - 1, 0);
+      items.forEach(el=>el.classList.remove('on'));
+      items[acIdx].classList.add('on');
+      items[acIdx].scrollIntoView({block:'nearest'});
+    } else if(e.key === 'Enter'){
+      e.preventDefault();
+      if(acIdx >= 0 && items[acIdx]) pickCity(items[acIdx].dataset.c);
+      else if(items.length === 1)   pickCity(items[0].dataset.c);
+    } else if(e.key === 'Escape'){
+      closeAC(); input.blur();
+    }
+  });
+
+  list.addEventListener('mousedown', e=>{
+    const row = e.target.closest('div[data-c]');
+    if(row) { e.preventDefault(); pickCity(row.dataset.c); }
+  });
+
+  document.getElementById('ac-clear').addEventListener('click', ()=>clearCity());
+  document.addEventListener('click', e=>{ if(!e.target.closest('#ac-city')) closeAC(); });
+}
+
+function applyFilters(){
+  filtro.regioes    = selectedOf('f-regiao');
+  filtro.estados    = selectedOf('f-estado');
+  filtro.municipios = citySel !== null ? [citySel] : [];
+
+  view = ALL.filter(m=>{
+    if(filtro.regioes.length    && !filtro.regioes.includes(m.regiao)) return false;
+    if(filtro.estados.length    && !filtro.estados.includes(m.estado)) return false;
+    if(filtro.municipios.length && !filtro.municipios.includes(m.codigo_ibge)) return false;
+    if(filtro.matopiba && !m.matopiba) return false;
+    return true;
+  });
+
+  render();
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function render(){
+  renderKPIs();
+  renderRegionChart();
+  renderGroupedChart();
+  renderScatter();
+  renderHeatmap();
+  renderTable();
+  renderMaps();
+  renderChrome();
+}
+
+function renderChrome(){
+  const t = totals(view);
+  document.getElementById('chip-mun').textContent  = nf(t.n);
+  document.getElementById('foot-count').textContent = nf(t.n) + ' municipalities';
+  const parts = [];
+  if(filtro.regioes.length) parts.push(filtro.regioes.join(', '));
+  if(filtro.estados.length) parts.push(filtro.estados[0]);
+  if(filtro.municipios.length){
+    const m = ALL.find(x=>x.codigo_ibge===filtro.municipios[0]);
+    if(m) parts.push(m.municipio);
+  }
+  if(filtro.matopiba) parts.push('Matopiba only');
+  document.getElementById('scope-label').textContent = parts.length ? parts.join(' · ') : 'Brazil · all regions';
+}
+
+function renderKPIs(){
+  const t = totals(view);
+  document.getElementById('kpi-prod').textContent   = mt(t.p);
+  document.getElementById('kpi-cap').textContent    = mt(t.c);
+  document.getElementById('kpi-def').textContent    = mt(t.d);
+  document.getElementById('kpi-defpct').textContent = pct1(t.dpct);
+  document.getElementById('kpi-cov').textContent    = t.cov.toFixed(1) + '%';
+}
+
+/* ---------- 1. barras: deficit % por região ---------- */
+function renderRegionChart(){
+  const agg  = byKey(view,'regiao');
+  const labs = regionsPresent(view);
+  const vals = labs.map(r=>agg[r].dpct);
+  /* mesma escala de calor dos mapas: vermelho (falta profunda) → verde (equilíbrio/superávit) */
+  const cols = vals.map(v => heatRamp(v, .88));
+
+  if(charts.region){
+    charts.region.data.labels = labs.map(r=>REGION_SHORT[r]||r);
+    charts.region.data.datasets[0].data = vals;
+    charts.region.data.datasets[0].backgroundColor = cols;
+    charts.region._vals = vals;
+    charts.region.update();
+    return;
+  }
+
+  charts.region = new Chart(document.getElementById('cRegion'), {
+    type:'bar',
+    data:{ labels:labs.map(r=>REGION_SHORT[r]||r), datasets:[{ data:vals, backgroundColor:cols, borderRadius:4, borderSkipped:false, barPercentage:.62 }]},
+    options:{
+      layout:{padding:{top:18,bottom:18}},
+      scales:{
+        x:{grid:{display:false},border:{color:C.line},ticks:{font:{size:10}}},
+        y:{grid:{color:C.grid},border:{display:false},ticks:{callback:v=>v+'%'},
+           title:{display:true,text:'Deficit (%) · negative = shortfall',color:C.tick,font:{size:10}}}
+      },
+      plugins:{ tooltip:{callbacks:{
+        title:i=>labs[i[0].dataIndex],
+        label:c=>{const v=c.parsed.y; return v<0 ? Math.abs(v).toFixed(1)+'% of production uncovered' : v.toFixed(1)+'% surplus capacity';}
+      }}}
+    },
+    plugins:[{
+      id:'valueLabels',
+      afterDatasetsDraw(chart){
+        const {ctx}=chart; const vs = chart._vals || vals;
+        chart.getDatasetMeta(0).data.forEach((bar,i)=>{
+          const v=vs[i]; if(v===undefined) return;
+          ctx.save();
+          ctx.fillStyle = v>0 ? '#6EE7B7' : '#E2E8F0';
+          ctx.font='600 10.5px Inter, sans-serif';
+          ctx.textAlign='center';
+          ctx.fillText(v.toFixed(1)+'%', bar.x, v<0 ? bar.y+16 : bar.y-7);
+          ctx.restore();
+        });
+      }
+    }]
+  });
+  charts.region._vals = vals;
+}
+
+/* ---------- 2. barras agrupadas ---------- */
+function renderGroupedChart(){
+  const agg  = byKey(view,'regiao');
+  const labs = regionsPresent(view);
+  const P = labs.map(r=>agg[r].p/1e6);
+  const K = labs.map(r=>agg[r].c/1e6);
+  const D = labs.map(r=>agg[r].d/1e6);
+
+  if(charts.grouped){
+    charts.grouped.data.labels = labs.map(r=>REGION_SHORT[r]||r);
+    charts.grouped.data.datasets[0].data = P;
+    charts.grouped.data.datasets[1].data = K;
+    charts.grouped.data.datasets[2].data = D;
+    charts.grouped.update();
+    return;
+  }
+
+  charts.grouped = new Chart(document.getElementById('cGrouped'), {
+    type:'bar',
+    data:{ labels:labs.map(r=>REGION_SHORT[r]||r), datasets:[
+      {label:'Production', data:P, backgroundColor:'rgba(16,229,160,.85)', borderRadius:3, borderSkipped:false},
+      {label:'Capacity',   data:K, backgroundColor:'rgba(34,211,238,.82)',  borderRadius:3, borderSkipped:false},
+      {label:'Deficit',    data:D, backgroundColor:'rgba(248,113,113,.85)', borderRadius:3, borderSkipped:false}
+    ]},
+    options:{
+      scales:{
+        x:{grid:{display:false},border:{color:C.line},ticks:{font:{size:9.5}}},
+        y:{grid:{color:C.grid},border:{display:false},ticks:{callback:v=>v+'M'}}
+      },
+      plugins:{
+        legend:{display:true,position:'bottom',labels:{boxWidth:8,boxHeight:8,usePointStyle:true,pointStyle:'circle',padding:14,font:{size:10}}},
+        tooltip:{callbacks:{ label:c=>c.dataset.label+': '+c.parsed.y.toFixed(1)+'M t' }}
+      }
+    }
+  });
+}
+
+/* ---------- 3. scatter município ----------
+   Eixo X logarítmico: a produção varia de ~1 mil a 5,7 milhões de t.
+   Eixo Y limitado a [-100, +100]: -100% é o piso natural (capacidade zero).
+   Municípios sem nenhuma armazenagem viram um grupo próprio, em vermelho.  */
+function renderScatter(){
+  const MINP = 1000;
+  const floor = [], rest = [];
+  let clipped = 0;
+
+  view.filter(m => m.production_t > MINP).forEach(m => {
+    const real = (m.capacity_t - m.production_t) / m.production_t * 100;
+    const p = { x:m.production_t, y:Math.min(100, real), yr:real, n:m.municipio, u:m.estado, c:m.capacity_t };
+    if(real > 100) clipped++;
+    (m.capacity_t === 0 ? floor : rest).push(p);
+  });
+
+  const bandColor = y =>
+      y >= 0  ? 'rgba(52,211,153,.6)'      /* superavit   */
+    : y > -50 ? 'rgba(163,230,53,.5)'      /* falta leve  */
+    :           'rgba(251,146,60,.5)';     /* falta forte */
+
+  document.getElementById('scatter-tag').textContent = nf(floor.length + rest.length) + ' MUN.';
+
+  const foot = [];
+  if(floor.length) foot.push(`The red line at \u2212100% is <b>${nf(floor.length)} municipalities with zero storage</b>.`);
+  if(clipped)      foot.push(`<span class="warn">${nf(clipped)} surplus municipalities exceed +100% and sit pinned to the top edge.</span>`);
+  foot.push(`Municipalities producing under ${nf(MINP)} t are omitted.`);
+  document.getElementById('scatter-foot').innerHTML = ' ' + foot.join(' ');
+
+  if(charts.scatter){
+    charts.scatter.data.datasets[0].data = rest;
+    charts.scatter.data.datasets[0].backgroundColor = rest.map(p=>bandColor(p.y));
+    charts.scatter.data.datasets[1].data = floor;
+    charts.scatter.update();
+    return;
+  }
+
+  charts.scatter = new Chart(document.getElementById('cScatter'), {
+    type:'scatter',
+    data:{ datasets:[
+      { label:'has storage', data:rest,  pointRadius:2.1, pointHoverRadius:5,
+        backgroundColor:rest.map(p=>bandColor(p.y)), borderColor:'transparent' },
+      { label:'no storage',  data:floor, pointRadius:2.1, pointHoverRadius:5,
+        backgroundColor:'rgba(220,38,38,.62)', borderColor:'transparent' }
+    ]},
+    options:{
+      parsing:false,
+      layout:{padding:{top:6,right:8}},
+      scales:{
+        x:{ type:'logarithmic', min:MINP, max:8e6,
+            grid:{color:C.grid}, border:{color:C.line},
+            ticks:{ maxRotation:0, autoSkip:false,
+              callback:v=>{
+                const ok=[1e3,1e4,1e5,1e6];
+                if(!ok.includes(v)) return null;
+                return v>=1e6 ? (v/1e6)+'M t' : (v/1e3)+'k t';
+              }},
+            title:{display:true,text:'Production \u2014 log scale',color:C.tick,font:{size:10}} },
+        y:{ min:-104, max:104,
+            grid:{color:C.grid}, border:{display:false},
+            ticks:{ stepSize:50, callback:v=>Math.abs(v)>100 ? '' : v+'%' },
+            title:{display:true,text:'Storage balance (% of production)',color:C.tick,font:{size:10}} }
+      },
+      plugins:{ tooltip:{callbacks:{
+        title:i=>{const p=i[0].raw; return p.n+' \u00b7 '+p.u;},
+        label:c=>{
+          const p=c.raw;
+          return [ nf(p.x)+' t produced',
+                   nf(p.c)+' t stored',
+                   p.c===0 ? 'no storage capacity' : 'balance '+p.yr.toFixed(1)+'%' ];
+        }
+      }}}
+    },
+    plugins:[{
+      id:'refLines',
+      beforeDatasetsDraw(chart){
+        const {ctx, chartArea:a, scales} = chart;
+        ctx.save();
+        ctx.font='600 9px Inter, sans-serif'; ctx.textAlign='left'; ctx.lineWidth=1;
+        /* equilibrio em 0% */
+        const y0 = scales.y.getPixelForValue(0);
+        ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(203,213,225,.32)';
+        ctx.beginPath(); ctx.moveTo(a.left,y0); ctx.lineTo(a.right,y0); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle='rgba(203,213,225,.5)';
+        ctx.fillText('balance', a.left+4, y0-4);
+        /* piso em -100% */
+        const yF = scales.y.getPixelForValue(-100);
+        ctx.strokeStyle='rgba(220,38,38,.38)';
+        ctx.beginPath(); ctx.moveTo(a.left,yF); ctx.lineTo(a.right,yF); ctx.stroke();
+        ctx.fillStyle='rgba(248,113,113,.75)';
+        ctx.fillText('no storage', a.left+4, yF-5);
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+/* ---------- 4. heatmap UF × região ---------- */
+const UF_REGION = {};
+ALL.forEach(m => { UF_REGION[m.estado] = m.regiao; });
+
+/* ordem geográfica IBGE (Norte → Sul), não alfabética */
+const UFS_ALL = ['RO','AC','AM','RR','PA','AP','TO',
+                 'MA','PI','CE','RN','PB','PE','AL','SE','BA',
+                 'MS','MT','GO','DF',
+                 'MG','ES','RJ','SP',
+                 'PR','SC','RS'];
+
+/* Escala de calor única — vermelho (falta profunda) → verde (equilíbrio).
+   Sem azul em nenhum ponto da rampa; superávit recebe verde-esmeralda claro. */
+const HEAT_STOPS = [[220,38,38],[249,115,22],[251,191,36],[163,230,53],[34,197,94]];
+
+function heatRamp(v, alpha=1){
+  if(v === null || v === undefined) return `rgba(126,150,180,${alpha*.18})`;
+  if(v > 0) return `rgba(52,211,153,${alpha})`;          /* superávit */
+  const t = Math.max(0, Math.min(1, 1 + v/100));         /* -100% → 0 ; 0% → 1 */
+  const i = Math.min(3, Math.floor(t*4)), f = t*4 - i;
+  const a = HEAT_STOPS[i], b = HEAT_STOPS[i+1];
+  const ch = k => Math.round(a[k] + (b[k]-a[k])*f);
+  return `rgba(${ch(0)},${ch(1)},${ch(2)},${alpha})`;
+}
+
+function heatColor(v){ return heatRamp(v, 1); }
+
+function renderHeatmap(){
+  const agg = byKey(view,'estado');
+  const rows = REGION_ORDER.map(r=>[REGION_SHORT[r], r]);
+
+  document.getElementById('hm').innerHTML = rows.map(([code,name])=>`
+    <div class="hm-row">
+      <span class="lbl">${code}</span>
+      <div class="hm-cells">
+        ${UFS_ALL.map(uf=>{
+          if(UF_REGION[uf]!==name || !agg[uf]) return '<i></i>';
+          const v = agg[uf].dpct;
+          return `<i data-v style="background:${heatColor(v)}" title="${uf} — ${name}: ${v.toFixed(1)}%"></i>`;
+        }).join('')}
+      </div>
+    </div>`).join('');
+
+  document.getElementById('hmAxis').innerHTML = UFS_ALL.map(u=>`<span>${u}</span>`).join('');
+}
+
+/* ---------- 5. tabela top 10 ---------- */
+function renderTable(){
+  /* maior falta = valor mais negativo → ordem crescente */
+  const top = [...view].sort((a,b)=>defOf(a)-defOf(b)).slice(0,10);
+  const tb = document.getElementById('tbody');
+
+  if(!top.length){
+    tb.innerHTML = `<tr><td colspan="8" class="empty">No municipalities match the current filters.</td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = top.map((m,i)=>{
+    const d = defOf(m);
+    const p = m.production_t>0 ? d/m.production_t*100 : 0;
+    return `<tr>
+      <td class="idx num">${i+1}</td>
+      <td style="font-weight:500">${m.municipio}</td>
+      <td style="color:var(--tx-2)">${m.estado}</td>
+      <td style="color:var(--tx-2)">${m.regiao}</td>
+      <td class="r num">${nf(m.production_t)}</td>
+      <td class="r num">${nf(m.capacity_t)}</td>
+      <td class="r num">${nf(d)}</td>
+      <td class="r">
+        <div class="mini-bar">
+          <div class="track"><div class="fill" style="width:${Math.min(100,Math.abs(p))}%"></div></div>
+          <span class="pct num">${p.toFixed(1)}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* =========================================================
+   MAPAS (Leaflet, sem tiles — geometria local do repo)
+   ========================================================= */
+const BR_BOUNDS = [[-34.0,-74.2],[5.5,-33.8]];
+const maps = {};
+let layerMun = null, layerBub = null, layerUF = null;
+let bubbleLayerGroup = null;
+
+/* índice rápido código → município */
+const BY_CODE = new Map(ALL.map(m=>[m.codigo_ibge, m]));
+const PT_BY_CODE = new Map(MUN_PTS.map(p=>[p[0], [p[2], p[1]]]));   /* [lat, lng] */
+
+function newMap(id){
+  const map = L.map(id, {
+    preferCanvas:true, zoomControl:true, attributionControl:false,
+    zoomSnap:.25, minZoom:3, maxZoom:9, wheelPxPerZoomLevel:140
+  });
+  map.fitBounds(BR_BOUNDS);
+  map.zoomControl.setPosition('topright');
+  return map;
+}
+
+/* escala de cor: v = deficit % (negativo = falta) */
+/* mesma rampa dos heatmaps; fora do filtro vira azul-petróleo apagado */
+function mapColor(v, inScope){
+  if(!inScope) return '#0F2941';
+  if(v === null || v === undefined) return '#13314F';
+  return heatRamp(v, 1);
+}
+
+function tipMun(m){
+  const d = defOf(m), p = m.production_t>0 ? d/m.production_t*100 : 0;
+  return `<b>${m.municipio} · ${m.estado}</b>
+    Production <i>${nf(m.production_t)} t</i><br>
+    Capacity <i>${nf(m.capacity_t)} t</i><br>
+    Deficit <i>${nf(d)} t (${p.toFixed(1)}%)</i>`;
+}
+
+function buildMaps(){
+  maps.m1 = newMap('map1');
+  maps.m2 = newMap('map2');
+  maps.m3 = newMap('map3');
+
+  /* --- 1. coroplético municipal --- */
+  layerMun = L.geoJSON(GEO_MUN, {
+    smoothFactor:1.2,
+    style:()=>({weight:0, fillOpacity:1, color:'#050E19'}),
+    onEachFeature:(f,layer)=>{
+      const m = BY_CODE.get(f.properties.c);
+      if(m) layer.bindTooltip(tipMun(m), {className:'mtip', sticky:true});
+      layer.on('mouseover', ()=>layer.setStyle({weight:1, color:'#F8FAFC'}));
+      layer.on('mouseout',  ()=>layer.setStyle({weight:0}));
+    }
+  }).addTo(maps.m1);
+
+  /* --- 2. bolhas de produção --- */
+  /* contorno das UFs entra primeiro para ficar por baixo das bolhas */
+  L.geoJSON(GEO_UF, {style:()=>({weight:.6, color:'#22507F', fillColor:'#0C2036', fillOpacity:1})}).addTo(maps.m2);
+  bubbleLayerGroup = L.layerGroup().addTo(maps.m2);
+
+  /* --- 3. coroplético por UF --- */
+  layerUF = L.geoJSON(GEO_UF, {
+    style:()=>({weight:.7, color:'#050E19', fillOpacity:1}),
+    onEachFeature:(f,layer)=>{
+      layer.on('mouseover', ()=>layer.setStyle({weight:1.6, color:'#F8FAFC'}));
+      layer.on('mouseout',  ()=>layer.setStyle({weight:.7, color:'#050E19'}));
+    }
+  }).addTo(maps.m3);
+
+  ['map1-load','map2-load','map3-load'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.remove();
+  });
+}
+
+function renderMaps(){
+  if(!layerMun) return;
+
+  const inScope = new Set(view.map(m=>m.codigo_ibge));
+
+  /* 1. municipal */
+  layerMun.eachLayer(layer=>{
+    const code = layer.feature.properties.c;
+    const m = BY_CODE.get(code);
+    const ok = inScope.has(code);
+    const v = (m && m.production_t>0) ? defOf(m)/m.production_t*100 : null;
+    layer.setStyle({ fillColor: mapColor(v, ok), fillOpacity: ok ? 1 : .35 });
+  });
+
+  /* 2. bolhas — só municípios no escopo com produção */
+  bubbleLayerGroup.clearLayers();
+  const withProd = view.filter(m=>m.production_t>0 && PT_BY_CODE.has(m.codigo_ibge));
+  const maxP = withProd.reduce((a,m)=>Math.max(a,m.production_t), 1);
+  withProd
+    .sort((a,b)=>b.production_t-a.production_t)
+    .slice(0,2500)
+    .forEach(m=>{
+      const r = 1.4 + 13 * Math.sqrt(m.production_t/maxP);
+      const d = defOf(m), pct = d/m.production_t*100;
+      L.circleMarker(PT_BY_CODE.get(m.codigo_ibge), {
+        radius:r, weight:.6, color:'rgba(240,57,156,.45)',
+        fillColor: pct > 0 ? '#34D399' : '#22D3EE',
+        fillOpacity:.45
+      }).bindTooltip(tipMun(m), {className:'mtip', sticky:true}).addTo(bubbleLayerGroup);
+    });
+
+  /* 3. por UF */
+  const aggUF = byKey(view, 'estado');
+  const ufsInScope = new Set(view.map(m=>m.estado));
+  layerUF.eachLayer(layer=>{
+    const uf = layer.feature.properties.uf;
+    const a  = aggUF[uf];
+    const ok = ufsInScope.has(uf);
+    layer.setStyle({ fillColor: mapColor(a ? a.dpct : null, ok), fillOpacity: ok ? 1 : .35 });
+    if(a){
+      layer.bindTooltip(`<b>${layer.feature.properties.nome} (${uf})</b>
+        Production <i>${mt(a.p)} Mt</i><br>
+        Capacity <i>${mt(a.c)} Mt</i><br>
+        Deficit <i>${mt(a.d)} Mt (${a.dpct.toFixed(1)}%)</i>`, {className:'mtip', sticky:true});
+    } else {
+      layer.unbindTooltip();
+    }
+  });
+
+  fitMaps();
+}
+
+/* enquadra os mapas no escopo filtrado */
+let lastFitKey = '';
+function fitMaps(){
+  const key = filtro.regioes.join('|') + '#' + filtro.estados.join('|') + '#' + (citySel||'') + '#' + filtro.matopiba;
+  if(key === lastFitKey) return;
+  lastFitKey = key;
+
+  const isAll = !filtro.regioes.length && !filtro.estados.length && citySel===null && !filtro.matopiba;
+  if(isAll){
+    Object.values(maps).forEach(mp=>mp.fitBounds(BR_BOUNDS, {animate:true}));
+    return;
+  }
+  const pts = view.map(m=>PT_BY_CODE.get(m.codigo_ibge)).filter(Boolean);
+  if(!pts.length) return;
+  const b = L.latLngBounds(pts).pad(citySel!==null ? 1.6 : 0.12);
+  Object.values(maps).forEach(mp=>mp.fitBounds(b, {animate:true, maxZoom:8}));
+}
+
+/* ---------- nav ---------- */
+document.querySelectorAll('.nav-link').forEach(a=>{
+  a.addEventListener('click', e=>{
+    e.preventDefault();
+    document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+    a.classList.add('active');
+  });
+});
+
+/* ---------- boot ---------- */
+buildFilters();
+bindAutocomplete();
+render();
+
+/* geometria entra depois do primeiro paint para não travar a tela */
+requestAnimationFrame(()=>setTimeout(()=>{
+  try {
+    buildMaps();
+    renderMaps();
+  } catch(err){
+    console.error('Falha ao montar os mapas:', err);
+    ['map1-load','map2-load','map3-load'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.textContent = 'Geometry unavailable — check geo.js';
+    });
+  }
+}, 60));
+</script>
+</body>
+</html>
