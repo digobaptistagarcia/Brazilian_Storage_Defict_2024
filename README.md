@@ -5,8 +5,8 @@ Interactive dashboard cross-referencing **grain production** and **static storag
 
 **🔗 Live dashboard:** https://digobaptistagarcia.github.io/Brazilian_Storage_Defict_2024/
 
-<!-- Replace the line below with a screenshot or GIF of the dashboard (drag the image into this README using GitHub's editor and it will generate the link automatically) -->
-<!-- ![Dashboard](docs/preview.png) -->
+<img width="1900" height="937" alt="image" src="https://github.com/user-attachments/assets/5943e3a7-8ebb-4a4e-b9b8-9bfc70254505" />
+
 
 ---
 
