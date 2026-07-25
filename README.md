@@ -1,4 +1,4 @@
-# Brazilian_Storage_Defict_2024
+
 # Grain Storage Deficit in Brazil — 2024
 
 Interactive dashboard cross-referencing **grain production** and **static storage capacity** municipality by municipality, revealing where Brazil cannot store what it harvests.
